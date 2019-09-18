@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 raster = "0.2.0"
+rayon = "1.2.0"
