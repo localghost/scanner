@@ -1,77 +1,52 @@
 use raster;
+use structopt::StructOpt;
 
-fn threshhold(image: &mut raster::Image, threshold: u8) {
-    image.bytes.iter_mut().for_each(|b| {
-        if *b > threshold {
-            *b = 255 as u8;
-        } else {
-            *b = 0 as u8;
-        }
-    });
-}
+mod scanner;
 
-fn check_block(image: &mut raster::Image, x: i32, y: i32, width: i32, height: i32, fill_percent: u8) -> bool {
-    //    println!("Checking block ({}, {}) of size {}x{}", x, y, width, height);
-    let mut blacks = 0;
-    for i in x..x + width {
-        for j in y..y + height {
-            if image.get_pixel(i, j).unwrap().a == 0 {
-                blacks += 1;
-            };
-        }
-    }
-    blacks as f32 > (width * height) as f32 * (fill_percent as f32 / 100 as f32)
-}
+#[derive(StructOpt)]
+#[structopt(name = "scanner", about = "Convert colored text photos to scan-like images.")]
+struct Options {
+    #[structopt(short, long, default_value = "120")]
+    threshold: u8,
 
-fn discard_block(image: &mut raster::Image, x: i32, y: i32, width: i32, height: i32) {
-    for i in x..x + width {
-        for j in y..y + height {
-            image.set_pixel(i, j, raster::Color::white()).unwrap();
-        }
-    }
-}
+    #[structopt(short, long, default_value = "50")]
+    block_size: u8,
 
-fn discard_blocks(image: &mut raster::Image, block_size: i32, fill_percent: u8) {
-    let width = image.width;
-    let height = image.height;
+    #[structopt(short = "f", long, default_value = "80")]
+    block_fill_percent: u8,
 
-    let mut i = 0;
-    let mut j;
-    loop {
-        j = 0;
-        loop {
-            if check_block(
-                image,
-                i,
-                j,
-                std::cmp::min(block_size, width - i),
-                std::cmp::min(block_size, height - j),
-                fill_percent,
-            ) {
-                discard_block(
-                    image,
-                    i,
-                    j,
-                    std::cmp::min(block_size, width - i),
-                    std::cmp::min(block_size, height - j),
-                );
-            }
-            j += block_size;
-            if j > height {
-                break;
-            }
-        }
-        i += block_size;
-        if i > width {
-            break;
-        }
-    }
+    input: std::path::PathBuf,
+    output: std::path::PathBuf,
 }
 
 fn main() {
-    let mut image = raster::open("/tmp/page.jpg").unwrap();
+    let options = Options::from_args();
+    if !options.input.exists() {
+        println!("Input {:?} does not exists", options.input);
+        std::process::exit(1);
+    }
+
+    if options.input.is_dir() {
+        if options.output.exists() && options.output.is_file() {
+            println!("Output exists and is a file, please provide non existing path or an existing directory.");
+            std::process::exit(1);
+        }
+    }
+
+    let files = if options.input.is_file() {
+        vec![options.input]
+    } else {
+        std::fs::canonicalize(&options.input)
+            .unwrap()
+            .read_dir()
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .collect::<Vec<_>>()
+    };
+
+    let mut image = raster::open("/home/kostrzewa/Pictures/page.jpg").unwrap();
     raster::filter::grayscale(&mut image).unwrap();
-    threshhold(&mut image, 150);
-    discard_blocks(&mut image, 50, 80);
+    scanner::threshhold(&mut image, options.threshold);
+    scanner::discard_blocks(&mut image, options.block_size as i32, options.block_fill_percent);
     raster::save(&image, "/tmp/page_bw.jpg").unwrap();
 }
