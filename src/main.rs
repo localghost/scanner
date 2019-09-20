@@ -4,6 +4,14 @@ use structopt::StructOpt;
 
 mod scanner;
 
+fn parse_size(src: &str) -> (u32, u32) {
+    let mut split = src.splitn(2, 'x');
+    (
+        split.next().unwrap().parse().unwrap(),
+        split.next().unwrap().parse().unwrap(),
+    )
+}
+
 #[derive(StructOpt)]
 #[structopt(name = "scanner", about = "Convert colored text photos to scan-like images.")]
 struct Options {
@@ -18,6 +26,9 @@ struct Options {
 
     #[structopt(short = "f", long, default_value = "80")]
     block_fill_percent: u8,
+
+    #[structopt(short = "r", long, parse(from_str = parse_size))]
+    resize: Option<(u32, u32)>,
 
     input: std::path::PathBuf,
     output: std::path::PathBuf,
