@@ -1,4 +1,5 @@
 use raster;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::io::{BufRead, Write};
 use structopt::StructOpt;
 
@@ -36,9 +37,20 @@ struct Options {
 
 fn handle_file(input: &std::path::Path, output: &std::path::Path, options: &Options) {
     let mut image = raster::open(input.to_str().unwrap()).unwrap();
+    if let Some(resize) = options.resize {
+        raster::editor::resize(
+            &mut image,
+            resize.0 as i32,
+            resize.1 as i32,
+            raster::editor::ResizeMode::Fit,
+        )
+        .unwrap();
+    }
     raster::filter::grayscale(&mut image).unwrap();
     scanner::threshhold(&mut image, options.threshold);
-    scanner::discard_blocks(&mut image, options.block_size as i32, options.block_fill_percent);
+    if !options.block_discard_disabled {
+        scanner::discard_blocks(&mut image, options.block_size as i32, options.block_fill_percent);
+    }
     raster::save(&image, output.to_str().unwrap()).unwrap();
 }
 
@@ -72,24 +84,14 @@ fn main() -> std::io::Result<()> {
 
     if options.input.is_file() {
         handle_file(&options.input, &options.output, &options);
-    //        let mut image = raster::open(options.input.to_str().unwrap()).unwrap();
-    //        raster::filter::grayscale(&mut image).unwrap();
-    //        scanner::threshhold(&mut image, options.threshold);
-    //        scanner::discard_blocks(&mut image, options.block_size as i32, options.block_fill_percent);
-    //        raster::save(&image, options.output.to_str().unwrap()).unwrap();
     } else {
         let files = std::fs::canonicalize(&options.input)?
             .read_dir()?
             .map(|e| e.unwrap().path())
             .collect::<Vec<_>>();
-        for file in &files {
-            handle_file(file, &options.output.join(file.file_name().unwrap()), &options);
-            //            let mut image = raster::open(file.to_str().unwrap()).unwrap();
-            //            raster::filter::grayscale(&mut image).unwrap();
-            //            scanner::threshhold(&mut image, options.threshold);
-            //            scanner::discard_blocks(&mut image, options.block_size as i32, options.block_fill_percent);
-            //            raster::save(&image).unwrap();
-        }
+        files
+            .par_iter()
+            .for_each(|file| handle_file(file, &options.output.join(file.file_name().unwrap()), &options));
     }
     Ok(())
 }
