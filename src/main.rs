@@ -70,10 +70,8 @@ fn main() -> std::io::Result<()> {
         }
     } else if options.input.is_file() {
         if options.output.exists() {
-            std::io::stdout()
-                .write(b"Output file already exists, overwrite it [y/N]?")
-                .unwrap();
-            std::io::stdout().flush().unwrap();
+            std::io::stdout().write(b"Output file already exists, overwrite it [y/N]?: ")?;
+            std::io::stdout().flush()?;
             let mut answer = String::new();
             std::io::stdin().lock().read_line(&mut answer)?;
             if answer.trim() != "y" {
