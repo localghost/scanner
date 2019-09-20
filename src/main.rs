@@ -20,7 +20,7 @@ struct Options {
     threshold: u8,
 
     #[structopt(short = "d", long)]
-    block_discard_disabled: bool,
+    block_cleanup_disabled: bool,
 
     #[structopt(short, long, default_value = "50")]
     block_size: u8,
@@ -48,7 +48,7 @@ fn handle_file(input: &std::path::Path, output: &std::path::Path, options: &Opti
     }
     raster::filter::grayscale(&mut image).unwrap();
     scanner::threshhold(&mut image, options.threshold);
-    if !options.block_discard_disabled {
+    if !options.block_cleanup_disabled {
         scanner::discard_blocks(&mut image, options.block_size as i32, options.block_fill_percent);
     }
     raster::save(&image, output.to_str().unwrap()).unwrap();
