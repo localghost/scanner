@@ -1,6 +1,6 @@
 use raster;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::io::{BufRead, Write};
+use std::io::Write;
 use structopt::StructOpt;
 
 mod scanner;
@@ -73,7 +73,7 @@ fn main() -> std::io::Result<()> {
             std::io::stdout().write(b"Output file already exists, overwrite it [y/N]?: ")?;
             std::io::stdout().flush()?;
             let mut answer = String::new();
-            std::io::stdin().lock().read_line(&mut answer)?;
+            std::io::stdin().read_line(&mut answer)?;
             if answer.trim() != "y" {
                 std::process::exit(0);
             }
